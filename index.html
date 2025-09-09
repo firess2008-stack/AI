@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Assistant & Scientific Calculator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --calc-bg: #161b22;
+            --text-color: #c9d1d9;
+            --btn-bg-light: #444444;
+            --btn-bg-dark: #333333;
+            --btn-operator: #ff9500;
+            --btn-equals: #ff2d55;
+            --btn-clear: #a0a0a0;
+            --border-radius: 1.5rem;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 2rem;
+            padding: 1rem;
+            margin-left: auto;
+            margin-right: auto;
+            width: 100%;
+            max-width: 1400px;
+        }
+
+        .ai-assistant-container, .calculator-container {
+            background-color: var(--calc-bg);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            height: 800px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        
+        .ai-assistant-container {
+            flex: 2;
+            max-width: 800px;
+        }
+
+        .calculator-container {
+            flex: 1;
+            max-width: 480px;
+        }
+
+        /* Pages and buttons for switching */
+        .page {
+            display: none;
+            flex-direction: column;
+            flex: 1;
+        }
+
+        .page.active {
+            display: flex;
+        }
+
+        .page-switch-button {
+            background-color: #3b82f6;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            transition: background-color 0.2s;
+            cursor: pointer;
+        }
+        .page-switch-button.active, .page-switch-button:hover {
+            background-color: #2563eb;
+        }
+        
+        /* Message container scrollbar */
+        .message-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        .message-container::-webkit-scrollbar-track {
+            background: #161b22;
+        }
+        .message-container::-webkit-scrollbar-thumb {
+            background-color: #444;
+            border-radius: 4px;
+        }
+
+        /* AI Assistant Styles */
+        #chat-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #334155;
+        }
+        
+        .message-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            padding: 0 1rem;
+            overflow-y: auto;
+        }
+        .message {
+            max-width: 85%;
+            word-wrap: break-word;
+            padding: 1rem 1.5rem;
+            border-radius: 1.5rem;
+            position: relative;
+        }
+        .user-message {
+            background-color: #4f46e5;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 0.5rem;
+        }
+        .ai-message {
+            background-color: #334155;
+            color: #cbd5e1;
+            align-self: flex-start;
+            border-bottom-left-radius: 0.5rem;
+        }
+        .loading-bubble {
+            display: inline-block;
+            background-color: #334155;
+            border-radius: 1.5rem;
+            padding: 1rem 1.5rem;
+            font-size: 0;
+        }
+        .loading-bubble span {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background-color: #94a3b8;
+            border-radius: 50%;
+            margin: 0 2px;
+            animation: bounce 1s infinite;
+        }
+        .loading-bubble span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        .loading-bubble span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        @keyframes bounce {
+            0%, 80%, 100% {
+                transform: translateY(0);
+            }
+            40% {
+                transform: translateY(-8px);
+            }
+        }
+        .message pre {
+            background-color: #0f172a;
+            color: #e2e8f0;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .message code {
+            background-color: #0f172a;
+            color: #e2e8f0;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-family: monospace;
+        }
+        .user-message pre, .user-message code {
+            background-color: #6366f1;
+            color: white;
+        }
+        .spoiler-text {
+            background-color: #475569;
+            color: transparent;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+        .spoiler-text:hover {
+            color: #e2e8f0;
+            background-color: #475569;
+        }
+        #user-input {
+            resize: none;
+            min-height: 50px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        .image-preview {
+            max-width: 100%;
+            border-radius: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        /* Calculator Styles */
+        .calculator {
+            width: 100%;
+            max-width: 480px;
+            background-color: var(--calc-bg);
+            border-radius: var(--border-radius);
+            padding: 1rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .calc-display {
+            background-color: #010409;
+            color: var(--text-color);
+            font-size: 3rem;
+            text-align: right;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            margin-bottom: 1rem;
+            overflow-x: auto;
+            white-space: nowrap;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            cursor: text;
+            user-select: none;
+            position: relative;
+        }
+        
+        /* Tooltip styles */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px 8px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -60px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            white-space: nowrap;
+            font-size: 0.8rem;
+        }
+        
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .calc-display-text {
+            display: inline-block;
+            min-width: 100%;
+        }
+
+        .calc-buttons {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+        }
+        .calc-buttons .calc-btn:nth-child(4n) {
+            background-color: var(--btn-operator);
+        }
+        .calc-buttons .calc-btn:nth-child(4n+1):not(.calc-btn-clear) {
+            background-color: var(--btn-clear);
+        }
+        .calc-btn {
+            background-color: var(--btn-bg-dark);
+            color: var(--text-color);
+            font-size: 1.5rem;
+            font-weight: 600;
+            padding: 1rem 0.5rem;
+            border-radius: 1rem;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            user-select: none;
+        }
+        .calc-btn.fn {
+            font-size: 1.25rem;
+            background-color: #2d3748;
+        }
+        .calc-btn.fn.math-fn {
+            background-color: #4a5568;
+        }
+
+        .calc-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .calc-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        .calc-btn-clear {
+            background-color: var(--btn-clear);
+            color: #1a1a1a;
+        }
+
+        .calc-btn-operator {
+            background-color: var(--btn-operator);
+            color: var(--text-color);
+        }
+
+        .calc-btn-equals {
+            background-color: var(--btn-equals);
+            color: var(--text-color);
+            grid-column: span 2;
+        }
+
+        .calc-btn-zero {
+            grid-column: span 2;
+        }
+        
+        .error-message {
+            position: absolute;
+            bottom: 1rem;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #ff2d55;
+            font-size: 0.9rem;
+            animation: fadeOut 3s forwards;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            80% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        /* Mobile adjustments */
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+                align-items: center;
+                gap: 1rem;
+            }
+            .ai-assistant-container, .calculator-container {
+                width: 100%;
+                max-width: 100%;
+                height: auto;
+                flex: none;
+            }
+            .calc-buttons {
+                grid-template-columns: repeat(4, 1fr);
+            }
+            .calc-btn-zero {
+                grid-column: span 2;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="flex justify-center mb-4 gap-4">
+        <button id="show-assistant-btn" class="page-switch-button active">Assistant</button>
+        <button id="show-calculator-btn" class="page-switch-button">Calculator</button>
+    </header>
+
+    <main class="main-content">
+        <!-- AI Assistant Page -->
+        <section id="assistant-page" class="ai-assistant-container page active">
+            <div id="chat-header">
+                <h1 class="text-3xl font-bold text-white">AI Assistant</h1>
+                <div class="flex items-center space-x-2">
+                    <button id="new-chat-btn" class="p-2 rounded-full bg-slate-700 text-white hover:bg-slate-600 transition-colors">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+            </div>
+            <div id="message-container" class="message-container overflow-y-auto my-4 p-4">
+                <!-- Chat messages will be dynamically added here -->
+            </div>
+            <div id="input-container" class="flex items-end space-x-2 p-2 rounded-xl bg-slate-700">
+                <div class="flex-grow">
+                    <div id="image-preview-container" class="flex flex-col items-center"></div>
+                    <textarea id="user-input" class="w-full bg-transparent border-none focus:ring-0 resize-none text-white placeholder-slate-400 p-2" placeholder="Ask me anything..." rows="1"></textarea>
+                </div>
+                <div class="flex flex-col items-center space-y-2">
+                    <button id="image-upload-btn" class="flex items-center justify-center w-10 h-10 rounded-full bg-slate-600 text-white hover:bg-slate-500 transition-colors">
+                        <i class="fas fa-image"></i>
+                    </button>
+                    <input type="file" id="image-upload" class="hidden" accept="image/*">
+                    <button id="send-btn" class="flex items-center justify-center w-10 h-10 rounded-full bg-indigo-600 text-white hover:bg-indigo-500 transition-colors">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Calculator Page -->
+        <section id="calculator-page" class="calculator-container page">
+            <div class="calculator">
+                <div id="calc-display" class="calc-display">
+                    <span class="calc-display-text">0</span>
+                </div>
+                <div class="calc-buttons">
+                    <button class="calc-btn calc-btn-clear" data-value="C">AC</button>
+                    <button class="calc-btn calc-btn-operator" data-value="(" title="Open Parenthesis">(</button>
+                    <button class="calc-btn calc-btn-operator" data-value=")" title="Close Parenthesis">)</button>
+                    <button class="calc-btn calc-btn-operator" data-value="/" title="Division">÷</button>
+
+                    <button class="calc-btn" data-value="7">7</button>
+                    <button class="calc-btn" data-value="8">8</button>
+                    <button class="calc-btn" data-value="9">9</button>
+                    <button class="calc-btn calc-btn-operator" data-value="*" title="Multiplication">×</button>
+
+                    <button class="calc-btn" data-value="4">4</button>
+                    <button class="calc-btn" data-value="5">5</button>
+                    <button class="calc-btn" data-value="6">6</button>
+                    <button class="calc-btn calc-btn-operator" data-value="-" title="Subtraction">-</button>
+        
+                    <button class="calc-btn" data-value="1">1</button>
+                    <button class="calc-btn" data-value="2">2</button>
+                    <button class="calc-btn" data-value="3">3</button>
+                    <button class="calc-btn calc-btn-operator" data-value="+" title="Addition">+</button>
+
+                    <button class="calc-btn calc-btn-zero" data-value="0">0</button>
+                    <button class="calc-btn" data-value=".">.</button>
+                    <button class="calc-btn calc-btn-equals" data-value="=">=</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="mt-8 text-center text-sm text-slate-500">
+        <p>&copy; 2025 S K AI</p>
+        <p>Powered by <a href="https://aistudio.google.com" target="_blank" class="text-indigo-400 hover:text-indigo-300 transition-colors">Google AI Studio</a></p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- UI and Page Switching Logic ---
+            const showAssistantBtn = document.getElementById('show-assistant-btn');
+            const showCalculatorBtn = document.getElementById('show-calculator-btn');
+            const assistantPage = document.getElementById('assistant-page');
+            const calculatorPage = document.getElementById('calculator-page');
+
+            function switchPage(pageToShow) {
+                const allPages = [assistantPage, calculatorPage];
+                const allButtons = [showAssistantBtn, showCalculatorBtn];
+
+                allPages.forEach(page => page.classList.remove('active'));
+                allButtons.forEach(button => button.classList.remove('active'));
+
+                if (pageToShow === 'assistant') {
+                    assistantPage.classList.add('active');
+                    showAssistantBtn.classList.add('active');
+                } else {
+                    calculatorPage.classList.add('active');
+                    showCalculatorBtn.classList.add('active');
+                }
+            }
+
+            showAssistantBtn.addEventListener('click', () => switchPage('assistant'));
+            showCalculatorBtn.addEventListener('click', () => switchPage('calculator'));
+
+            // --- Gemini Assistant Logic ---
+            const chatHistory = [];
+            const messageContainer = document.getElementById('message-container');
+            const userInput = document.getElementById('user-input');
+            const sendBtn = document.getElementById('send-btn');
+            const newChatBtn = document.getElementById('new-chat-btn');
+            const imageUploadBtn = document.getElementById('image-upload-btn');
+            const imageUpload = document.getElementById('image-upload');
+            const imagePreviewContainer = document.getElementById('image-preview-container');
+            let uploadedImageBase64 = null;
+
+            // Function to add a message to the chat
+            function addMessage(role, text, image = null) {
+                const messageDiv = document.createElement('div');
+                messageDiv.classList.add('message', role === 'user' ? 'user-message' : 'ai-message');
+                
+                const formattedText = text
+                    .replace(/```(.*?)\n(.*?)```/gs, (match, p1, p2) => {
+                        const language = p1.trim();
+                        const code = p2.trim();
+                        return `<pre class="language-${language}"><code>${code}</code></pre>`;
+                    })
+                    .replace(/`([^`]+)`/g, '<code>$1</code>')
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                    .replace(/~~(.*?)~~/g, '<s>$1</s>')
+                    .replace(/\|\|(.*?)\|\|/g, '<span class="spoiler-text">$1</span>');
+
+                messageDiv.innerHTML = formattedText;
+                
+                if (image) {
+                    const imgElement = document.createElement('img');
+                    imgElement.src = image;
+                    imgElement.classList.add('image-preview');
+                    messageDiv.appendChild(imgElement);
+                }
+
+                messageContainer.appendChild(messageDiv);
+                messageContainer.scrollTop = messageContainer.scrollHeight;
+            }
+
+            // Show a loading indicator
+            function showLoading() {
+                const loadingDiv = document.createElement('div');
+                loadingDiv.classList.add('loading-bubble', 'ai-message');
+                loadingDiv.innerHTML = '<span></span><span></span><span></span>';
+                messageContainer.appendChild(loadingDiv);
+                messageContainer.scrollTop = messageContainer.scrollHeight;
+                return loadingDiv;
+            }
+
+            // Hide the loading indicator
+            function hideLoading(loadingDiv) {
+                if (loadingDiv) {
+                    loadingDiv.remove();
+                }
+            }
+
+            // Function to handle sending a message
+            async function sendMessage() {
+                const prompt = userInput.value.trim();
+                const imageFile = uploadedImageBase64;
+
+                if (!prompt && !imageFile) {
+                    return;
+                }
+
+                addMessage('user', prompt, imageFile);
+                userInput.value = '';
+                uploadedImageBase64 = null;
+                imagePreviewContainer.innerHTML = '';
+                
+                const loadingDiv = showLoading();
+
+                try {
+                    // --- IMPORTANT: PASTE YOUR API KEY HERE ---
+                    const apiKey = "AIzaSyCX_AwHEDy-py-n9w5fQ3FaKwZuQC5lOA0"; 
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+                    let parts = [{ text: prompt }];
+                    if (imageFile) {
+                        const base64Data = imageFile.split(',')[1];
+                        parts.push({
+                            inlineData: {
+                                mimeType: "image/png",
+                                data: base64Data
+                            }
+                        });
+                    }
+
+                    const payload = {
+                        contents: [{
+                            role: "user",
+                            parts: parts
+                        }],
+                    };
+
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const result = await response.json();
+                    const aiResponse = result.candidates[0].content.parts[0].text;
+                    hideLoading(loadingDiv);
+                    addMessage('ai', aiResponse);
+                } catch (error) {
+                    hideLoading(loadingDiv);
+                    addMessage('ai', 'Oops! Something went wrong. Please try again.');
+                    console.error('API Error:', error);
+                }
+            }
+
+            // Event listeners for the assistant
+            sendBtn.addEventListener('click', sendMessage);
+            userInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+            newChatBtn.addEventListener('click', () => {
+                messageContainer.innerHTML = '';
+                chatHistory.length = 0;
+            });
+            imageUploadBtn.addEventListener('click', () => {
+                imageUpload.click();
+            });
+            imageUpload.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        uploadedImageBase64 = e.target.result;
+                        imagePreviewContainer.innerHTML = `<img src="${uploadedImageBase64}" class="image-preview"/>`;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            // --- Scientific Calculator Logic ---
+            const calcDisplay = document.querySelector('.calc-display-text');
+            const calcButtons = document.querySelectorAll('.calc-btn');
+            const calculator = document.querySelector('.calculator');
+            
+            let currentInput = '';
+            let isResult = false;
+            let errorMessageTimeout;
+
+            function updateCalcDisplay(value) {
+                calcDisplay.textContent = value;
+            }
+            
+            // Handles adding a value to the display
+            function appendValue(value) {
+                if (isResult) {
+                    currentInput = '';
+                    isResult = false;
+                }
+                currentInput += value;
+                updateCalcDisplay(currentInput);
+            }
+
+            // Function to evaluate the expression safely
+            function calculate() {
+                try {
+                    // Replace user-friendly symbols with JavaScript equivalents
+                    let expression = currentInput.replace(/×/g, '*').replace(/÷/g, '/');
+
+                    // Replace function names with Math object calls
+                    expression = expression.replace(/sin\(/g, 'Math.sin(');
+                    expression = expression.replace(/cos\(/g, 'Math.cos(');
+                    expression = expression.replace(/tan\(/g, 'Math.tan(');
+                    expression = expression.replace(/log\(/g, 'Math.log10(');
+                    expression = expression.replace(/ln\(/g, 'Math.log(');
+                    expression = expression.replace(/√\(/g, 'Math.sqrt(');
+                    expression = expression.replace(/π/g, 'Math.PI');
+                    expression = expression.replace(/e/g, 'Math.E');
+
+                    // A very basic check to prevent dangerous code
+                    if (/[a-zA-Z]/.test(expression) && !expression.includes('Math.')) {
+                        throw new Error("Invalid characters in expression.");
+                    }
+
+                    const result = eval(expression);
+                    currentInput = result.toString();
+                    updateCalcDisplay(currentInput);
+                    isResult = true;
+                } catch (error) {
+                    showCalcError("Invalid Expression");
+                    currentInput = '';
+                    updateCalcDisplay('0');
+                    isResult = false;
+                }
+            }
+            
+            function showCalcError(message) {
+                const existingError = document.querySelector('.error-message');
+                if (existingError) {
+                    existingError.remove();
+                }
+
+                const errorMessage = document.createElement('div');
+                errorMessage.textContent = message;
+                errorMessage.classList.add('error-message');
+                calculator.appendChild(errorMessage);
+                
+                clearTimeout(errorMessageTimeout);
+                errorMessageTimeout = setTimeout(() => {
+                    errorMessage.remove();
+                }, 3000);
+            }
+
+            calcButtons.forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const value = e.target.dataset.value;
+                    
+                    if (value === 'C') {
+                        currentInput = '';
+                        updateCalcDisplay('0');
+                        isResult = false;
+                    } else if (value === '=') {
+                        calculate();
+                    } else if (value === '**2') {
+                        appendValue('**2');
+                    } else if (value === '**') {
+                        appendValue('^');
+                    } else if (value === '/') {
+                        appendValue('÷');
+                    } else if (value === '*') {
+                        appendValue('×');
+                    } else {
+                        appendValue(value);
+                    }
+                });
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && assistantPage.classList.contains('active')) {
+                   // This is handled by the assistant logic
+                } else if (e.key === 'Enter' && calculatorPage.classList.contains('active')) {
+                    e.preventDefault();
+                    calculate();
+                } else if (e.key === 'Escape' || e.key.toLowerCase() === 'c') {
+                    currentInput = '';
+                    updateCalcDisplay('0');
+                    isResult = false;
+                } else if (e.key === 'Backspace') {
+                    if (isResult) {
+                        currentInput = '';
+                        isResult = false;
+                    } else {
+                        currentInput = currentInput.slice(0, -1);
+                    }
+                    updateCalcDisplay(currentInput || '0');
+                } else if (/[0-9\.\+\-\*\/]/.test(e.key)) {
+                    appendValue(e.key);
+                }
+            });
+            
+            updateCalcDisplay('0');
+        });
+    </script>
+</body>
+</html>
